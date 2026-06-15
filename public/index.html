@@ -8,238 +8,72 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     * { margin:0; padding:0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0f0f10;
-      color: #f5f5f7;
-      height: 100vh;
-      overflow: hidden;
-    }
+    body { font-family: 'Inter', sans-serif; background: #0f0f10; color: #f5f5f7; height: 100vh; overflow: hidden; }
     .app { display: flex; height: 100vh; width: 100%; background: #000; }
-    /* Sidebar */
-    .sidebar {
-      width: 360px;
-      background: #121212;
-      border-right: 1px solid #2c2c2e;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      flex-shrink: 0;
-    }
-    .profile-header {
-      padding: 20px 16px;
-      border-bottom: 1px solid #2c2c2e;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: #0e0e0f;
-    }
-    .avatar-large {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #ff2a6d;
-      cursor: pointer;
-    }
-    .nickname { font-weight: 700; font-size: 1.2rem; display: flex; gap: 8px; align-items: center; }
-    .edit-icon { font-size: 0.8rem; color: #aaa; cursor: pointer; }
-    .status-badge { font-size: 0.7rem; color: #26de81; }
-    /* Stories */
-    .stories-row {
-      padding: 12px 16px;
-      border-bottom: 1px solid #2c2c2e;
-      overflow-x: auto;
-      white-space: nowrap;
-      display: flex;
-      gap: 14px;
-    }
-    .story-circle {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-    }
-    .story-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #ff2a6d;
-      background: #000;
-    }
-    .story-add { border: 2px dashed #5e5e66; display: flex; align-items: center; justify-content: center; }
-    .story-name { font-size: 11px; color: #ccc; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
-    /* Chats list */
-    .chats-list { flex: 1; overflow-y: auto; }
-    .chat-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      cursor: pointer;
-      transition: 0.1s;
-      border-bottom: 1px solid #1c1c1e;
-    }
-    .chat-item:hover, .chat-item.active { background: #1c1c1e; }
-    .chat-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-    .chat-details { flex: 1; }
-    .chat-name { font-weight: 600; }
-    .last-msg { font-size: 12px; color: #8e8e93; }
-    /* Main chat */
+    .sidebar { width: 360px; background: #121212; border-right: 1px solid #2c2c2e; display: flex; flex-direction: column; overflow-y: auto; }
     .main-chat { flex: 1; display: flex; flex-direction: column; background: #0c0c0e; }
-    .chat-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid #2c2c2e;
-      background: #101011;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .messages-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .message-bubble {
-      max-width: 70%;
-      padding: 10px 14px;
-      border-radius: 22px;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
-    .my-message { background: #2e7d32; align-self: flex-end; border-bottom-right-radius: 5px; }
-    .other-message { background: #26262b; align-self: flex-start; border-bottom-left-radius: 5px; }
-    .media-msg { max-width: 220px; border-radius: 12px; margin-top: 5px; }
-    .audio-msg audio { max-width: 200px; height: 35px; }
-    /* Input area */
-    .chat-input-area {
-      padding: 12px 16px;
-      background: #101011;
-      border-top: 1px solid #2c2c2e;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .input-icons { display: flex; gap: 12px; }
-    .input-icons i {
-      font-size: 24px;
-      cursor: pointer;
-      color: #8e8e93;
-      transition: all 0.2s;
-    }
-    .input-icons i:hover { color: #ff2a6d; }
-    .recording-active { color: #ff2a6d !important; animation: pulse 1s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    #messageInput {
-      flex: 1;
-      background: #1c1c1e;
-      border: none;
-      padding: 12px;
-      border-radius: 28px;
-      color: white;
-      outline: none;
-    }
-    button {
-      background: #ff2a6d;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 30px;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    /* Modals */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #1c1c1e;
-      border-radius: 28px;
-      width: 90%;
-      max-width: 400px;
-      padding: 24px;
-    }
-    .story-viewer { background: black; max-width: 380px; text-align: center; }
-    .story-media { max-width: 100%; max-height: 70vh; border-radius: 24px; }
-    .group-member-select { max-height: 200px; overflow-y: auto; margin: 12px 0; }
-    .media-preview {
-      position: fixed;
-      bottom: 80px;
-      right: 20px;
-      background: #1c1c1e;
-      border-radius: 16px;
-      padding: 8px;
-      display: flex;
-      gap: 8px;
-      z-index: 200;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-    .media-preview img, .media-preview video { max-width: 80px; max-height: 80px; border-radius: 8px; }
+    .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .chat-header { padding: 16px 20px; border-bottom: 1px solid #2c2c2e; background: #101011; }
+    .chat-input-area { padding: 12px 16px; background: #101011; border-top: 1px solid #2c2c2e; display: flex; gap: 10px; align-items: center; }
+    #messageInput { flex: 1; background: #1c1c1e; border: none; padding: 12px; border-radius: 28px; color: white; outline: none; }
+    button { background: #ff2a6d; border: none; padding: 10px 16px; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; }
     @media (max-width: 720px) { .sidebar { width: 280px; } }
   </style>
 </head>
 <body>
+
 <div class="app">
-  <div class="sidebar">...</div> <!-- same structure as before, but we'll simplify by loading same markup -->
-  <div class="main-chat">...</div>
+  <div class="sidebar">
+    <div style="padding: 20px;">AnonChat Sidebar</div>
+  </div>
+  <div class="main-chat">
+    <div class="chat-header">Mesajlar</div>
+    <div id="messagesArea" class="messages-area"></div>
+    <div class="chat-input-area">
+      <input type="text" id="messageInput" placeholder="Mesaj yazın...">
+      <button onclick="sendMessage()">Göndər</button>
+    </div>
+  </div>
 </div>
-<!-- All modals same as previous version but with improved JS -->
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  // Full featured client with recording waveform simulation and media preview
-  // ... (the JavaScript logic from previous production answer, but with added UX improvements)
-  // For brevity and given the length limit, I'm providing the core enhancements.
-  // In a real deployment, you would include the full frontend logic from the previous production example.
-  // The key improvements: 
-  // - voice button shows recording animation & cancel option
-  // - image/video preview before sending
-  // - waveform visualizer (canvas) during recording
-  console.log("Production-ready frontend with enhanced UI/UX");
-</script>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const socket = io();
+  const messagesArea = document.getElementById('messagesArea');
+  const messageInput = document.getElementById('messageInput');
 
-  socket.emit('init', {
-    userId: 'user_' + Date.now(),
-    nickname: 'Anonimİstifadəçi',
-    avatar: 'https://i.pravatar.cc/150'
-  });
-
-  socket.on('new_message', (msg) => {
-    console.log("Yeni mesaj gəldi:", msg);
-  });
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  // WebSocket bağlantısını başlat
-  const socket = io();
-
-  // Qoşulanda özümüzü tanıt
+  // Qoşulma
   socket.on('connect', () => {
     console.log("Serverə qoşulduq! ID:", socket.id);
     socket.emit('init', {
-      userId: 'user_' + Math.random(),
-      nickname: 'Anonim',
+      userId: 'user_' + Math.floor(Math.random() * 1000000),
+      nickname: 'Anonim_' + Math.floor(Math.random() * 100),
       avatar: 'https://i.pravatar.cc/150'
     });
   });
 
-  // Mesajları qəbul et
+  // Mesaj gələndə
   socket.on('new_message', (msg) => {
-    console.log("Yeni mesaj gəldi:", msg);
+    const div = document.createElement('div');
+    div.style.padding = "10px";
+    div.style.background = "#26262b";
+    div.style.borderRadius = "10px";
+    div.innerText = `${msg.senderName}: ${msg.content}`;
+    messagesArea.appendChild(div);
   });
+
+  // Mesaj göndərmə
+  function sendMessage() {
+    const content = messageInput.value;
+    if (content) {
+      socket.emit('send_message', {
+        conversationId: 'general',
+        messageType: 'text',
+        content: content
+      });
+      messageInput.value = '';
+    }
+  }
 </script>
 </body>
-</html>                                                                
+</html>
