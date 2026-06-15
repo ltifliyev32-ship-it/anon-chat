@@ -208,5 +208,38 @@
   // - waveform visualizer (canvas) during recording
   console.log("Production-ready frontend with enhanced UI/UX");
 </script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  socket.emit('init', {
+    userId: 'user_' + Date.now(),
+    nickname: 'Anonimİstifadəçi',
+    avatar: 'https://i.pravatar.cc/150'
+  });
+
+  socket.on('new_message', (msg) => {
+    console.log("Yeni mesaj gəldi:", msg);
+  });
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // WebSocket bağlantısını başlat
+  const socket = io();
+
+  // Qoşulanda özümüzü tanıt
+  socket.on('connect', () => {
+    console.log("Serverə qoşulduq! ID:", socket.id);
+    socket.emit('init', {
+      userId: 'user_' + Math.random(),
+      nickname: 'Anonim',
+      avatar: 'https://i.pravatar.cc/150'
+    });
+  });
+
+  // Mesajları qəbul et
+  socket.on('new_message', (msg) => {
+    console.log("Yeni mesaj gəldi:", msg);
+  });
+</script>
 </body>
-</html>
+</html>                                                                
