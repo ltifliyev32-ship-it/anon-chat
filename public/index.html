@@ -2,64 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InstaChat · Yellow & Red Vibe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AnonChat · Anonymous Chat & Stories</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-  <!-- Login Screen -->
-  <div id="loginScreen" class="login-container">
-    <div class="login-card">
-      <h1><i class="fab fa-instagram"></i> InstaChat</h1>
-      <input type="text" id="nicknameInput" placeholder="Choose a nickname (optional)">
-      <textarea id="bioInput" placeholder="Tell something about yourself... (optional)"></textarea>
-      <button id="loginBtn">Join Chat</button>
-      <p class="hint">Leave blank → auto nickname like <strong>Anonim_48291</strong></p>
+  <!-- Auth Screens -->
+  <div id="authContainer" class="auth-container">
+    <div class="auth-card">
+      <h1><i class="fab fa-instagram"></i> AnonChat</h1>
+      <div class="auth-tabs">
+        <button id="showLoginBtn" class="active">Login</button>
+        <button id="showSignupBtn">Sign Up</button>
+      </div>
+      <div id="loginForm" class="auth-form">
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button id="doLogin">Enter Chat</button>
+      </div>
+      <div id="signupForm" class="auth-form" style="display:none;">
+        <input type="text" id="signupUsername" placeholder="Username (optional)">
+        <input type="password" id="signupPassword" placeholder="Password">
+        <textarea id="signupBio" placeholder="Bio (optional)"></textarea>
+        <button id="doSignup">Create Account</button>
+      </div>
+      <p class="auth-note">💡 Leave username blank → random like <strong>Anonim_48291</strong></p>
     </div>
   </div>
 
-  <!-- Main Chat Interface (hidden until login) -->
-  <div id="chatApp" class="chat-app" style="display: none;">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <h2><i class="fab fa-instagram"></i> InstaChat</h2>
-      </div>
-      <div class="online-users">
-        <h3>Online <span id="userCount">0</span></h3>
-        <ul id="usersList"></ul>
-      </div>
-    </div>
-    <div class="main-chat">
-      <div class="chat-header">
-        <div class="current-user-info">
-          <span id="currentNickname"></span>
-          <span id="currentBio" class="bio-text"></span>
+  <!-- Main App (hidden until login) -->
+  <div id="chatApp" style="display:none;">
+    <div class="app-container">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2><i class="fab fa-instagram"></i> AnonChat</h2>
         </div>
-        <div class="menu-icon" id="hamburgerBtn">
-          <i class="fas fa-bars"></i>
+        <div class="online-users">
+          <h3>Online <span id="userCount">0</span></h3>
+          <ul id="usersList"></ul>
         </div>
       </div>
-      <div class="messages-area" id="messagesArea">
-        <!-- messages appear here -->
+
+      <!-- Main Chat Area -->
+      <div class="main-area">
+        <div class="chat-header">
+          <div class="user-profile">
+            <span id="currentUsername"></span>
+            <span id="currentBio" class="bio-text"></span>
+          </div>
+          <div id="hamburgerBtn" class="menu-icon">
+            <i class="fas fa-bars"></i>
+          </div>
+        </div>
+        
+        <!-- Stories Row -->
+        <div class="stories-section">
+          <div class="stories-title">📸 Stories (24h)</div>
+          <div class="stories-row" id="storiesRow">
+            <div class="story-add" id="addStoryBtn">
+              <i class="fas fa-plus-circle"></i><span>Your Story</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="messages-area" id="messagesArea"></div>
+
+        <!-- Chat Input -->
+        <div class="chat-input">
+          <input type="text" id="messageInput" placeholder="Type a message...">
+          <button id="sendBtn"><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
       </div>
-      <div class="chat-input">
-        <input type="text" id="messageInput" placeholder="Type a message...">
-        <button id="sendBtn"><i class="fas fa-paper-plane"></i> Send</button>
+
+      <!-- Reels Section (Right Column) -->
+      <div class="reels-sidebar">
+        <div class="reels-header">🎬 Reels</div>
+        <div class="reels-grid" id="reelsGrid">
+          <div class="reel-add" id="addReelBtn">
+            <i class="fas fa-video"></i> Upload Reel
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Profile Edit Modal (Hamburger Menu) -->
+  <!-- Profile Edit Modal -->
   <div id="profileModal" class="modal">
     <div class="modal-content">
       <span class="close-modal">&times;</span>
       <h2>Edit Profile</h2>
       <label>Nickname</label>
-      <input type="text" id="editNickname" placeholder="Your nickname">
+      <input type="text" id="editUsername">
       <label>Bio</label>
-      <textarea id="editBio" placeholder="Your bio..."></textarea>
+      <textarea id="editBio"></textarea>
       <button id="saveProfileBtn">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- Story/Reel Upload Modal -->
+  <div id="uploadModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal close-upload">&times;</span>
+      <h2 id="uploadTitle">Add Story</h2>
+      <input type="file" id="uploadFile" accept="image/*,video/*">
+      <textarea id="uploadText" placeholder="Add text caption..."></textarea>
+      <button id="confirmUploadBtn">Publish</button>
     </div>
   </div>
 
