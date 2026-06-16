@@ -1,5 +1,13 @@
 const socket = io();
 
+// ========== UTILITY FUNCTIONS ==========
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // ========== DOM REFS ==========
 const authContainer = document.getElementById('authContainer');
 const chatApp = document.getElementById('chatApp');
@@ -10,15 +18,44 @@ const signupForm = document.getElementById('signupForm');
 const doLogin = document.getElementById('doLogin');
 const doSignup = document.getElementById('doSignup');
 
-// New sidebar tabs
 const chatsList = document.getElementById('chatsList');
-const usersListEl = document.getElementById('usersList'); // used for Users tab
+const usersListEl = document.getElementById('usersList');
 const tabBtns = document.querySelectorAll('.tab-btn');
 
-// Chat header (for DM)
 const chatName = document.getElementById('chatName');
 const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
+
+const messagesArea = document.getElementById('messagesArea');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const profileModal = document.getElementById('profileModal');
+const editUsername = document.getElementById('editUsername');
+const editBio = document.getElementById('editBio');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+
+const uploadModal = document.getElementById('uploadModal');
+const uploadFile = document.getElementById('uploadFile');
+const uploadText = document.getElementById('uploadText');
+const uploadTitle = document.getElementById('uploadTitle');
+const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+const closeUploadBtn = document.querySelector('.close-upload');
+
+const addStoryBtn = document.getElementById('addStoryBtn');
+const addReelBtn = document.getElementById('addReelBtn');
+const storiesRow = document.getElementById('storiesRow');
+const reelsGrid = document.getElementById('reelsGrid');
+
+const viewerModal = document.getElementById('storyViewerModal');
+const viewerMedia = document.getElementById('storyViewerMedia');
+const viewerCaption = document.getElementById('storyViewerCaption');
+const viewerUser = document.getElementById('storyViewerUser');
+const viewerLikeBtn = document.getElementById('viewerLikeBtn');
+const viewerLikeCount = document.getElementById('viewerLikeCount');
+const closeViewerBtn = document.getElementById('closeStoryViewer');
+
+const mobileNav = document.getElementById('mobileNav');
 
 let currentUser = null;
 let currentChat = null; // { type: 'dm', userId, conversationId }
@@ -45,16 +82,21 @@ doSignup.onclick = async () => {
   const password = document.getElementById('signupPassword').value;
   const bio = document.getElementById('signupBio').value;
   if (!password) return alert('Password required');
-  const res = await fetch('/api/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: username || null, password, bio })
-  });
-  const data = await res.json();
-  if (data.error) alert(data.error);
-  else {
-    alert('Account created! Please login.');
-    showLoginBtn.click();
+  try {
+    const res = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username || null, password, bio })
+    });
+    const data = await res.json();
+    if (data.error) alert(data.error);
+    else {
+      alert('Account created! Please login.');
+      showLoginBtn.click();
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Signup failed');
   }
 };
 
@@ -62,106 +104,83 @@ doSignup.onclick = async () => {
 doLogin.onclick = async () => {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-  const res = await fetch('/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (data.error) alert(data.error);
-  else {
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
     currentUser = data.user;
     authContainer.style.display = 'none';
     chatApp.style.display = 'block';
     document.getElementById('currentUsername').innerText = currentUser.username;
     document.getElementById('currentBio').innerText = currentUser.bio || 'No bio';
-    document.getElementById('editUsername').value = currentUser.username;
-    document.getElementById('editBio').value = currentUser.bio || '';
+    editUsername.value = currentUser.username;
+    editBio.value = currentUser.bio || '';
     document.querySelector('.sidebar').setAttribute('data-user-count', '0');
 
     socket.emit('user online', currentUser);
-    socket.emit('get messages');       // public chat history
+    socket.emit('get messages');
     socket.emit('get stories');
     socket.emit('get reels');
-    socket.emit('get_chats');          // DM conversation list
+    socket.emit('get_chats');
+  } catch (err) {
+    console.error(err);
+    alert('Login failed');
   }
 };
 
 // ========== SOCKET EVENTS ==========
 
-// --- Online Users (for both badge and Users tab) ---
 socket.on('update online', (users) => {
   allUsers = users;
-  // Update online badge
   document.getElementById('userCount').innerText = users.length;
   document.querySelector('.sidebar').setAttribute('data-user-count', users.length);
-  // Render Users tab
   renderUsersList(users);
 });
 
-// --- Public Chat (for groups later) ---
+// --- Public Chat ---
 socket.on('message history', (msgs) => {
-  const container = document.getElementById('messagesArea');
-  container.innerHTML = '';
+  messagesArea.innerHTML = '';
   msgs.forEach(msg => appendMessage(msg, false));
 });
 socket.on('chat message', (msg) => appendMessage(msg, false));
 
 function appendMessage(msg, isPrivate = false) {
-  // If private, we handle differently (own logic is inside private handler)
-  // For public, we just display
   const isOwn = msg.userId === currentUser?.id;
   const div = document.createElement('div');
   div.className = `message ${isOwn ? 'own' : 'other'}`;
   div.innerHTML = `<div class="sender">${escapeHtml(msg.username)}</div><div>${escapeHtml(msg.text)}</div>`;
-  document.getElementById('messagesArea').appendChild(div);
+  messagesArea.appendChild(div);
   div.scrollIntoView({ behavior: 'smooth' });
 }
-
-// Send public message (will be used for groups later)
-document.getElementById('sendBtn').addEventListener('click', () => {
-  const input = document.getElementById('messageInput');
-  if (input.value.trim()) {
-    // If we are in a private chat, send private message
-    if (currentChat && currentChat.type === 'dm') {
-      socket.emit('private_message', { receiverId: currentChat.userId, text: input.value });
-    } else {
-      socket.emit('chat message', { userId: currentUser.id, username: currentUser.username, text: input.value });
-    }
-    input.value = '';
-  }
-});
-document.getElementById('messageInput').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') document.getElementById('sendBtn').click();
-});
 
 // --- Private Messages ---
 socket.on('private_message', (msg) => {
   if (currentChat && currentChat.conversationId === msg.conversationId) {
-    // Display in messages area
     const isOwn = msg.senderId === currentUser.id;
     const div = document.createElement('div');
     div.className = `message ${isOwn ? 'own' : 'other'}`;
     div.innerHTML = `<div class="sender">${escapeHtml(msg.senderName)}</div><div>${escapeHtml(msg.text)}</div>`;
-    document.getElementById('messagesArea').appendChild(div);
+    messagesArea.appendChild(div);
     div.scrollIntoView({ behavior: 'smooth' });
   }
-  // Refresh chat list to update last message
   socket.emit('get_chats');
 });
 
 socket.on('private_messages_history', ({ conversationId, messages }) => {
   if (currentChat && currentChat.conversationId === conversationId) {
-    const container = document.getElementById('messagesArea');
-    container.innerHTML = '';
+    messagesArea.innerHTML = '';
     messages.forEach(msg => {
       const isOwn = msg.senderId === currentUser.id;
       const div = document.createElement('div');
       div.className = `message ${isOwn ? 'own' : 'other'}`;
       div.innerHTML = `<div class="sender">${escapeHtml(msg.senderName)}</div><div>${escapeHtml(msg.text)}</div>`;
-      container.appendChild(div);
+      messagesArea.appendChild(div);
     });
-    container.scrollTop = container.scrollHeight;
+    messagesArea.scrollTop = messagesArea.scrollHeight;
   }
 });
 
@@ -187,42 +206,41 @@ socket.on('unfollow_success', ({ targetUserId }) => {
   }
 });
 
-// --- Stories & Reels (with likes) ---
+// --- Stories & Reels ---
 socket.on('stories list', (stories) => {
-  const row = document.getElementById('storiesRow');
-  const addBtn = row.querySelector('.story-add');
-  row.innerHTML = '';
-  row.appendChild(addBtn);
+  const addBtn = storiesRow.querySelector('.story-add');
+  storiesRow.innerHTML = '';
+  storiesRow.appendChild(addBtn);
   stories.forEach(s => addStoryToUI(s));
 });
 socket.on('new story', (story) => addStoryToUI(story));
 
 socket.on('reels list', (reels) => {
-  const grid = document.getElementById('reelsGrid');
-  const addBtn = grid.querySelector('.reel-add');
-  grid.innerHTML = '';
-  grid.appendChild(addBtn);
+  const addBtn = reelsGrid.querySelector('.reel-add');
+  reelsGrid.innerHTML = '';
+  reelsGrid.appendChild(addBtn);
   reels.forEach(r => addReelToUI(r));
 });
 socket.on('new reel', (reel) => addReelToUI(reel));
 
-// --- Likes updates ---
+// --- Likes ---
 socket.on('story_likes_update', ({ storyId, likes }) => {
   const btn = document.querySelector(`.like-btn[data-id="${storyId}"]`);
   if (btn) btn.innerHTML = `❤️ ${likes.length}`;
-  // also update viewer like count
-  if (document.getElementById('viewerLikeBtn').dataset.storyid === storyId) {
-    document.getElementById('viewerLikeCount').innerText = likes.length;
+  if (viewerLikeBtn.dataset.id === storyId) {
+    viewerLikeCount.innerText = likes.length;
   }
 });
 socket.on('reel_likes_update', ({ reelId, likes }) => {
   const btn = document.querySelector(`.like-btn[data-reelid="${reelId}"]`);
   if (btn) btn.innerHTML = `❤️ ${likes.length}`;
+  if (viewerLikeBtn.dataset.id === reelId) {
+    viewerLikeCount.innerText = likes.length;
+  }
 });
 
 // ========== RENDER FUNCTIONS ==========
 
-// Users list (for Follow/Unfollow)
 function renderUsersList(users) {
   usersListEl.innerHTML = '';
   users.forEach(u => {
@@ -254,7 +272,6 @@ function renderUsersList(users) {
   });
 }
 
-// Chats list (DMs)
 function renderChats(chatsData) {
   chatsList.innerHTML = '';
   chatsData.forEach(chat => {
@@ -276,21 +293,17 @@ function renderChats(chatsData) {
   });
 }
 
-// Open a DM
 function openDM(chat) {
   currentChat = { type: 'dm', userId: chat.userId, conversationId: chat.conversationId };
-  // Update header
   chatName.innerText = chat.username;
   chatAvatar.src = chat.avatar || 'https://ui-avatars.com/api/?background=2c2c2e&color=fff&name='+chat.username[0];
   chatStatus.innerText = '🔒 DM';
-  // Enable input
-  document.getElementById('messageInput').disabled = false;
-  document.getElementById('sendBtn').disabled = false;
-  // Fetch messages
+  messageInput.disabled = false;
+  sendBtn.disabled = false;
   socket.emit('get_private_messages', { conversationId: chat.conversationId });
 }
 
-// Tab switching
+// ========== TAB SWITCHING ==========
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     tabBtns.forEach(b => b.classList.remove('active'));
@@ -302,28 +315,25 @@ tabBtns.forEach(btn => {
     } else {
       chatsList.style.display = 'none';
       usersListEl.style.display = 'block';
-      // refresh users list
       socket.emit('get_users');
     }
   });
 });
 
-// ========== STORY / REEL UI WITH LIKES ==========
+// ========== STORY / REEL UI ==========
 function addStoryToUI(story) {
-  const row = document.getElementById('storiesRow');
   const div = document.createElement('div');
   div.className = 'story-item';
   div.onclick = () => viewMedia(story);
   if (story.mediaUrl) {
-    if (story.mediaUrl.match(/\.(mp4|webm|ogg)$/i))
-      div.innerHTML = `<video src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;"></video>`;
-    else
-      div.innerHTML = `<img src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;">`;
+    const isVideo = story.mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+    div.innerHTML = isVideo
+      ? `<video src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;"></video>`
+      : `<img src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;">`;
   } else {
     div.innerHTML = `<div style="width:70px;height:70px;background:#ffd966;border-radius:50%;display:flex;align-items:center;justify-content:center;">📝</div>`;
   }
   div.innerHTML += `<div class="story-username">${escapeHtml(story.username)}</div>`;
-  // Like button
   const likeBtn = document.createElement('button');
   likeBtn.className = 'like-btn';
   likeBtn.dataset.id = story.id;
@@ -333,26 +343,23 @@ function addStoryToUI(story) {
     socket.emit('like_story', { storyId: story.id });
   };
   div.appendChild(likeBtn);
-  row.appendChild(div);
-  // Fetch initial likes
+  storiesRow.appendChild(div);
   socket.emit('get_story_likes', { storyId: story.id });
 }
 
 function addReelToUI(reel) {
-  const grid = document.getElementById('reelsGrid');
   const div = document.createElement('div');
   div.className = 'reel-item';
   div.onclick = () => viewMedia(reel);
   if (reel.mediaUrl) {
-    if (reel.mediaUrl.match(/\.(mp4|webm|ogg)$/i))
-      div.innerHTML = `<video src="${reel.mediaUrl}" controls style="width:100%;max-height:200px;"></video>`;
-    else
-      div.innerHTML = `<img src="${reel.mediaUrl}" style="width:100%;">`;
+    const isVideo = reel.mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+    div.innerHTML = isVideo
+      ? `<video src="${reel.mediaUrl}" controls style="width:100%;max-height:200px;"></video>`
+      : `<img src="${reel.mediaUrl}" style="width:100%;">`;
   } else {
     div.innerHTML = `<div style="padding:40px;text-align:center;">📝 ${escapeHtml(reel.text)}</div>`;
   }
   div.innerHTML += `<div class="reel-caption"><strong>${escapeHtml(reel.username)}</strong>: ${escapeHtml(reel.text || '')}</div>`;
-  // Like button
   const likeBtn = document.createElement('button');
   likeBtn.className = 'like-btn';
   likeBtn.dataset.reelid = reel.id;
@@ -362,25 +369,16 @@ function addReelToUI(reel) {
     socket.emit('like_reel', { reelId: reel.id });
   };
   div.appendChild(likeBtn);
-  grid.appendChild(div);
+  reelsGrid.appendChild(div);
   socket.emit('get_reel_likes', { reelId: reel.id });
 }
 
-// ========== STORY VIEWER WITH LIKE ==========
+// ========== STORY VIEWER ==========
 function viewMedia(item) {
-  const modal = document.getElementById('storyViewerModal');
-  const mediaContainer = document.getElementById('storyViewerMedia');
-  const captionEl = document.getElementById('storyViewerCaption');
-  const userEl = document.getElementById('storyViewerUser');
-  const likeBtn = document.getElementById('viewerLikeBtn');
-  const likeCount = document.getElementById('viewerLikeCount');
+  viewerMedia.innerHTML = '';
+  viewerCaption.textContent = '';
+  viewerUser.innerHTML = `<i class="fas fa-user-circle"></i> ${escapeHtml(item.username)}`;
 
-  // Clear and set
-  mediaContainer.innerHTML = '';
-  captionEl.textContent = '';
-  userEl.innerHTML = `<i class="fas fa-user-circle"></i> ${escapeHtml(item.username)}`;
-
-  // Show media
   if (item.mediaUrl) {
     const isVideo = item.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i);
     if (isVideo) {
@@ -389,36 +387,33 @@ function viewMedia(item) {
       video.controls = true;
       video.autoplay = true;
       video.playsInline = true;
-      mediaContainer.appendChild(video);
+      viewerMedia.appendChild(video);
       video.addEventListener('loadeddata', () => video.play().catch(() => {}));
     } else {
       const img = document.createElement('img');
       img.src = item.mediaUrl;
       img.alt = item.text || 'Story media';
-      mediaContainer.appendChild(img);
+      viewerMedia.appendChild(img);
     }
   } else {
-    mediaContainer.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:200px;background:#2a2a2e;border-radius:16px;padding:40px;width:100%;"><span style="font-size:48px;color:#ffd966;">📝</span></div>`;
+    viewerMedia.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:200px;background:#2a2a2e;border-radius:16px;padding:40px;width:100%;"><span style="font-size:48px;color:#ffd966;">📝</span></div>`;
   }
 
-  if (item.text && item.text.trim()) captionEl.textContent = item.text;
+  if (item.text && item.text.trim()) viewerCaption.textContent = item.text;
 
-  // Set like button state
-  likeBtn.dataset.id = item.id;
-  likeBtn.dataset.type = item.type || 'story'; // 'story' or 'reel'
-  // Fetch likes count
+  viewerLikeBtn.dataset.id = item.id;
+  viewerLikeBtn.dataset.type = item.type || 'story';
   if (item.type === 'reel') {
     socket.emit('get_reel_likes', { reelId: item.id });
   } else {
     socket.emit('get_story_likes', { storyId: item.id });
   }
 
-  modal.style.display = 'flex';
+  viewerModal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
 
-// Like button in viewer
-document.getElementById('viewerLikeBtn').addEventListener('click', function() {
+viewerLikeBtn.addEventListener('click', function() {
   const id = this.dataset.id;
   const type = this.dataset.type;
   if (type === 'reel') {
@@ -428,48 +423,49 @@ document.getElementById('viewerLikeBtn').addEventListener('click', function() {
   }
 });
 
-// Update viewer like count when update arrives
-socket.on('story_likes_update', ({ storyId, likes }) => {
-  const btn = document.getElementById('viewerLikeBtn');
-  if (btn.dataset.id === storyId) {
-    document.getElementById('viewerLikeCount').innerText = likes.length;
-  }
-});
-socket.on('reel_likes_update', ({ reelId, likes }) => {
-  const btn = document.getElementById('viewerLikeBtn');
-  if (btn.dataset.id === reelId) {
-    document.getElementById('viewerLikeCount').innerText = likes.length;
-  }
-});
-
-// Close story viewer
-document.getElementById('closeStoryViewer').addEventListener('click', closeViewer);
-document.getElementById('storyViewerModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeViewer();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const modal = document.getElementById('storyViewerModal');
-    if (modal.style.display === 'flex') closeViewer();
-  }
-});
 function closeViewer() {
-  document.getElementById('storyViewerModal').style.display = 'none';
+  viewerModal.style.display = 'none';
   document.body.style.overflow = '';
-  const video = document.querySelector('#storyViewerMedia video');
+  const video = viewerMedia.querySelector('video');
   if (video) video.pause();
 }
 
+closeViewerBtn.addEventListener('click', closeViewer);
+viewerModal.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeViewer();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && viewerModal.style.display === 'flex') closeViewer();
+});
+
+// ========== SEND MESSAGE ==========
+sendBtn.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text) return;
+  if (currentChat && currentChat.type === 'dm') {
+    socket.emit('private_message', { receiverId: currentChat.userId, text });
+  } else {
+    socket.emit('chat message', { userId: currentUser.id, username: currentUser.username, text });
+  }
+  messageInput.value = '';
+}
+
 // ========== PROFILE EDIT ==========
-const profileModal = document.getElementById('profileModal');
-document.getElementById('hamburgerBtn').onclick = () => profileModal.style.display = 'flex';
+hamburgerBtn.onclick = () => profileModal.style.display = 'flex';
 document.querySelector('.close-modal').onclick = () => profileModal.style.display = 'none';
-document.getElementById('saveProfileBtn').onclick = () => {
-  const newUsername = document.getElementById('editUsername').value.trim();
-  const newBio = document.getElementById('editBio').value;
+
+saveProfileBtn.onclick = () => {
+  const newUsername = editUsername.value.trim();
+  const newBio = editBio.value;
   if (!newUsername) return alert('Username cannot be empty');
   socket.emit('update profile', { userId: currentUser.id, username: newUsername, bio: newBio });
 };
+
 socket.on('profile updated', ({ username, bio }) => {
   currentUser.username = username;
   currentUser.bio = bio;
@@ -480,44 +476,54 @@ socket.on('profile updated', ({ username, bio }) => {
 
 // ========== UPLOAD STORY / REEL ==========
 let uploadType = 'stories';
+
 function openUploadModal(type) {
   uploadType = type;
-  document.getElementById('uploadTitle').innerText = type === 'stories' ? 'Add Story (expires in 24h)' : 'Upload Reel';
-  document.getElementById('uploadModal').style.display = 'flex';
+  uploadTitle.innerText = type === 'stories' ? 'Add Story (expires in 24h)' : 'Upload Reel';
+  uploadModal.style.display = 'flex';
 }
-document.getElementById('addStoryBtn').onclick = () => openUploadModal('stories');
-document.getElementById('addReelBtn').onclick = () => openUploadModal('reels');
-document.querySelector('.close-upload').onclick = () => document.getElementById('uploadModal').style.display = 'none';
-document.getElementById('confirmUploadBtn').onclick = async () => {
-  const fileInput = document.getElementById('uploadFile');
-  const text = document.getElementById('uploadText').value;
-  if (!fileInput.files[0] && !text) return alert('Please select a file or write text');
+
+addStoryBtn.onclick = () => openUploadModal('stories');
+addReelBtn.onclick = () => openUploadModal('reels');
+closeUploadBtn.onclick = () => uploadModal.style.display = 'none';
+
+confirmUploadBtn.onclick = async () => {
+  const file = uploadFile.files[0];
+  const text = uploadText.value.trim();
+  if (!file && !text) return alert('Please select a file or write text');
+
   const formData = new FormData();
-  if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+  if (file) formData.append('file', file);
   formData.append('type', uploadType);
   formData.append('text', text);
   formData.append('userId', currentUser.id);
   formData.append('username', currentUser.username);
-  const res = await fetch('/api/upload', { method: 'POST', body: formData });
-  const data = await res.json();
-  if (data.success) {
-    document.getElementById('uploadModal').style.display = 'none';
-    document.getElementById('uploadFile').value = '';
-    document.getElementById('uploadText').value = '';
-    if (uploadType === 'stories') addStoryToUI(data.post);
-    else addReelToUI(data.post);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) {
+      uploadModal.style.display = 'none';
+      uploadFile.value = '';
+      uploadText.value = '';
+      if (uploadType === 'stories') addStoryToUI(data.post);
+      else addReelToUI(data.post);
+    } else {
+      alert('Upload failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (err) {
+    console.error('Upload error:', err);
+    alert('Error uploading file');
   }
 };
 
 // ========== MOBILE NAVIGATION ==========
-const mobileNav = document.getElementById('mobileNav');
 if (mobileNav) {
   mobileNav.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       mobileNav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const view = btn.dataset.view;
-      const storiesSection = document.querySelector('.stories-section');
       const reelsSidebar = document.querySelector('.reels-sidebar');
 
       if (view === 'reels') {
@@ -561,6 +567,7 @@ if (mobileNav) {
           }
         }
       } else if (view === 'stories') {
+        const storiesSection = document.querySelector('.stories-section');
         if (storiesSection) storiesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         const closeBtn = document.getElementById('closeReelsMobile');
@@ -568,66 +575,4 @@ if (mobileNav) {
       }
     });
   });
-}
-
-// ========== UTILITY ==========
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
-}
-// ========== UPLOAD STORY / REEL ==========
-let uploadType = 'stories';
-function openUploadModal(type) {
-  uploadType = type;
-  document.getElementById('uploadTitle').innerText = type === 'stories' ? 'Add Story (expires in 24h)' : 'Upload Reel';
-  document.getElementById('uploadModal').style.display = 'flex';
-}
-
-document.getElementById('addStoryBtn').onclick = () => openUploadModal('stories');
-document.getElementById('addReelBtn').onclick = () => openUploadModal('reels');
-document.querySelector('.close-upload').onclick = () => document.getElementById('uploadModal').style.display = 'none';
-
-document.getElementById('confirmUploadBtn').onclick = async () => {
-  const fileInput = document.getElementById('uploadFile');
-  const text = document.getElementById('uploadText').value;
-  
-  if (!fileInput.files[0] && !text) return alert('Please select a file or write text');
-  
-  const formData = new FormData();
-  if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
-  formData.append('type', uploadType);
-  formData.append('text', text);
-  formData.append('userId', currentUser.id);
-  formData.append('username', currentUser.username);
-  
-  try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('uploadModal').style.display = 'none';
-      document.getElementById('uploadText').value = '';
-      fileInput.value = '';
-      alert('Uploaded successfully!');
-    } else {
-      alert('Upload failed');
-    }
-  } catch (err) {
-    console.error('Upload error:', err);
-    alert('Error uploading file');
-  }
-};
-
-// Helper for security
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
