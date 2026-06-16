@@ -113,6 +113,27 @@
     </div>
   </div>
 
+  <!-- ====== NEW: Immersive Story/Reel Viewer Modal ====== -->
+  <div id="storyViewerModal" class="modal story-viewer-modal">
+    <div class="modal-content">
+      <button id="closeStoryViewer" class="close-story-btn">
+        <i class="fas fa-times"></i>
+      </button>
+      <div class="story-viewer-container">
+        <div id="storyViewerMedia"></div>
+        <div id="storyViewerCaption"></div>
+        <div id="storyViewerUser" class="story-viewer-user"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== NEW: Mobile Bottom Navigation ====== -->
+  <div class="mobile-nav" id="mobileNav">
+    <button class="active" data-view="chat"><i class="fas fa-comment"></i> Chat</button>
+    <button data-view="reels"><i class="fas fa-film"></i> Reels</button>
+    <button data-view="stories"><i class="fas fa-camera"></i> Stories</button>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
 </body>
