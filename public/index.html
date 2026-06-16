@@ -69,15 +69,25 @@
 
       <!-- Main Chat Area -->
       <div class="main-area">
+        <!-- ========== UPDATED CHAT HEADER ========== -->
         <div class="chat-header">
           <div class="user-profile">
             <span id="currentUsername"></span>
             <span id="currentBio" class="bio-text"></span>
           </div>
+          <!-- DM header info (hidden by default, shown when a chat is selected) -->
+          <div id="chatHeaderInfo" style="display:flex;align-items:center;gap:8px;">
+            <img id="chatAvatar" class="chat-avatar" style="width:36px;height:36px;border-radius:50%;display:none;">
+            <div>
+              <strong id="chatName">Select a chat</strong><br>
+              <span id="chatStatus" style="font-size:12px;">start messaging</span>
+            </div>
+          </div>
           <div id="hamburgerBtn" class="menu-icon">
             <i class="fas fa-bars"></i>
           </div>
         </div>
+        <!-- ========================================= -->
         
         <!-- Stories Row -->
         <div class="stories-section">
