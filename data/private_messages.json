@@ -1,6 +1,3 @@
 {
-  "conversations": {
-    "dm_user1_user2": [ /* array of message objects */ ],
-    ...
-  }
+  "conversations": {}
 }
