@@ -34,14 +34,36 @@
   <!-- Main App (hidden until login) -->
   <div id="chatApp" style="display:none;">
     <div class="app-container">
-      <!-- Sidebar -->
+      <!-- Sidebar with Tabs -->
       <div class="sidebar">
         <div class="sidebar-header">
           <h2><i class="fab fa-instagram"></i> AnonChat</h2>
         </div>
-        <div class="online-users">
-          <h3>Online <span id="userCount">0</span></h3>
-          <ul id="usersList"></ul>
+        
+        <!-- Tab buttons -->
+        <div class="sidebar-tabs">
+          <button class="tab-btn active" data-tab="chats">
+            <i class="fas fa-comment-dots"></i> Chats
+          </button>
+          <button class="tab-btn" data-tab="users">
+            <i class="fas fa-users"></i> Users
+          </button>
+        </div>
+
+        <!-- Chats list (DMs & Groups) -->
+        <div class="chats-list" id="chatsList">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Users list (for follow/unfollow) -->
+        <div class="users-list" id="usersList" style="display:none;">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Online count badge (mobile-friendly) -->
+        <div class="online-badge" id="onlineBadge">
+          <i class="fas fa-circle" style="color:#26de81;font-size:10px;"></i>
+          <span id="userCount">0</span> online
         </div>
       </div>
 
@@ -68,12 +90,17 @@
         </div>
 
         <!-- Chat Messages -->
-        <div class="messages-area" id="messagesArea"></div>
+        <div class="messages-area" id="messagesArea">
+          <div class="empty-chat-message">
+            <i class="fas fa-comment-dots"></i>
+            <p>Select a chat to start messaging</p>
+          </div>
+        </div>
 
         <!-- Chat Input -->
         <div class="chat-input">
-          <input type="text" id="messageInput" placeholder="Type a message...">
-          <button id="sendBtn"><i class="fas fa-paper-plane"></i> Send</button>
+          <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+          <button id="sendBtn" disabled><i class="fas fa-paper-plane"></i> Send</button>
         </div>
       </div>
 
@@ -113,7 +140,7 @@
     </div>
   </div>
 
-  <!-- ====== NEW: Immersive Story/Reel Viewer Modal ====== -->
+  <!-- ====== Immersive Story/Reel Viewer Modal ====== -->
   <div id="storyViewerModal" class="modal story-viewer-modal">
     <div class="modal-content">
       <button id="closeStoryViewer" class="close-story-btn">
@@ -123,11 +150,17 @@
         <div id="storyViewerMedia"></div>
         <div id="storyViewerCaption"></div>
         <div id="storyViewerUser" class="story-viewer-user"></div>
+        <!-- Like button inside viewer -->
+        <div class="story-viewer-actions">
+          <button id="viewerLikeBtn" class="viewer-like-btn">
+            <i class="fas fa-heart"></i> <span id="viewerLikeCount">0</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ====== NEW: Mobile Bottom Navigation ====== -->
+  <!-- ====== Mobile Bottom Navigation ====== -->
   <div class="mobile-nav" id="mobileNav">
     <button class="active" data-view="chat"><i class="fas fa-comment"></i> Chat</button>
     <button data-view="reels"><i class="fas fa-film"></i> Reels</button>
