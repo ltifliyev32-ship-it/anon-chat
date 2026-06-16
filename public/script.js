@@ -580,3 +580,54 @@ function escapeHtml(str) {
     return m;
   });
 }
+// ========== UPLOAD STORY / REEL ==========
+let uploadType = 'stories';
+function openUploadModal(type) {
+  uploadType = type;
+  document.getElementById('uploadTitle').innerText = type === 'stories' ? 'Add Story (expires in 24h)' : 'Upload Reel';
+  document.getElementById('uploadModal').style.display = 'flex';
+}
+
+document.getElementById('addStoryBtn').onclick = () => openUploadModal('stories');
+document.getElementById('addReelBtn').onclick = () => openUploadModal('reels');
+document.querySelector('.close-upload').onclick = () => document.getElementById('uploadModal').style.display = 'none';
+
+document.getElementById('confirmUploadBtn').onclick = async () => {
+  const fileInput = document.getElementById('uploadFile');
+  const text = document.getElementById('uploadText').value;
+  
+  if (!fileInput.files[0] && !text) return alert('Please select a file or write text');
+  
+  const formData = new FormData();
+  if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+  formData.append('type', uploadType);
+  formData.append('text', text);
+  formData.append('userId', currentUser.id);
+  formData.append('username', currentUser.username);
+  
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('uploadModal').style.display = 'none';
+      document.getElementById('uploadText').value = '';
+      fileInput.value = '';
+      alert('Uploaded successfully!');
+    } else {
+      alert('Upload failed');
+    }
+  } catch (err) {
+    console.error('Upload error:', err);
+    alert('Error uploading file');
+  }
+};
+
+// Helper for security
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
