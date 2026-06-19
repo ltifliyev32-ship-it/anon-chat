@@ -8,6 +8,17 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatTime(date) {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'Now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+  if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diff < 604800000) return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  return d.toLocaleDateString();
+}
+
 // ========== DOM REFS ==========
 const authContainer = document.getElementById('authContainer');
 const chatApp = document.getElementById('chatApp');
@@ -19,22 +30,21 @@ const doLogin = document.getElementById('doLogin');
 const doSignup = document.getElementById('doSignup');
 
 const chatsList = document.getElementById('chatsList');
-const usersListEl = document.getElementById('usersList');
-const tabBtns = document.querySelectorAll('.tab-btn');
-
+const messagesArea = document.getElementById('messagesArea');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
 const chatName = document.getElementById('chatName');
 const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
+const userCountDisplay = document.getElementById('userCountDisplay');
 
-const messagesArea = document.getElementById('messagesArea');
-const messageInput = document.getElementById('messageInput');
-const recipientInput = document.getElementById('recipientInput'); // NEW
-const sendBtn = document.getElementById('sendBtn');
 const hamburgerBtn = document.getElementById('hamburgerBtn');
 const profileModal = document.getElementById('profileModal');
 const editUsername = document.getElementById('editUsername');
 const editBio = document.getElementById('editBio');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
+const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+const avatarUpload = document.getElementById('avatarUpload');
 
 const uploadModal = document.getElementById('uploadModal');
 const uploadFile = document.getElementById('uploadFile');
@@ -56,10 +66,11 @@ const viewerLikeBtn = document.getElementById('viewerLikeBtn');
 const viewerLikeCount = document.getElementById('viewerLikeCount');
 const closeViewerBtn = document.getElementById('closeStoryViewer');
 
-const mobileNav = document.getElementById('mobileNav');
+const bottomBtns = document.querySelectorAll('.bottom-btn');
+const mainArea = document.querySelector('.main-area');
 
 let currentUser = null;
-let currentChat = null; // { type: 'dm', userId, conversationId }
+let currentChat = null;
 let chats = [];
 let allUsers = [];
 
@@ -115,12 +126,12 @@ doLogin.onclick = async () => {
     if (data.error) return alert(data.error);
     currentUser = data.user;
     authContainer.style.display = 'none';
-    chatApp.style.display = 'block';
+    chatApp.style.display = 'flex';
     document.getElementById('currentUsername').innerText = currentUser.username;
     document.getElementById('currentBio').innerText = currentUser.bio || 'No bio';
     editUsername.value = currentUser.username;
     editBio.value = currentUser.bio || '';
-    document.querySelector('.sidebar').setAttribute('data-user-count', '0');
+    profileAvatarPreview.src = currentUser.avatar || 'https://ui-avatars.com/api/?background=5b6ee1&color=fff&name=' + currentUser.username[0];
 
     socket.emit('user online', currentUser);
     socket.emit('get messages');
@@ -137,25 +148,12 @@ doLogin.onclick = async () => {
 
 socket.on('update online', (users) => {
   allUsers = users;
-  document.getElementById('userCount').innerText = users.length;
-  document.querySelector('.sidebar').setAttribute('data-user-count', users.length);
+  const count = users.length;
+  userCountDisplay.textContent = count + ' online';
   renderUsersList(users);
-
-  // Update datalist for recipient auto-completion
-  const datalist = document.getElementById('onlineUsersList');
-  if (datalist) {
-    datalist.innerHTML = '';
-    users.forEach(username => {
-      if (username !== currentUser.username) {
-        const option = document.createElement('option');
-        option.value = username;
-        datalist.appendChild(option);
-      }
-    });
-  }
 });
 
-// --- Public Chat (for groups / public channels) ---
+// --- Public Chat ---
 socket.on('message history', (msgs) => {
   messagesArea.innerHTML = '';
   msgs.forEach(msg => appendMessage(msg, false));
@@ -163,45 +161,60 @@ socket.on('message history', (msgs) => {
 socket.on('chat message', (msg) => appendMessage(msg, false));
 
 function appendMessage(msg, isPrivate = false) {
-  const isOwn = msg.userId === currentUser?.id;
+  const isOwn = msg.userId === currentUser?.id || msg.from === 'You' || msg.from === currentUser?.username;
   const div = document.createElement('div');
-  div.className = `message ${isOwn ? 'own' : 'other'}`;
-  div.innerHTML = `<div class="sender">${escapeHtml(msg.username)}</div><div>${escapeHtml(msg.text)}</div>`;
+  div.className = `message ${isOwn ? 'own' : 'other'} ${isPrivate ? 'private' : ''}`;
+  let senderName = msg.username || msg.from || 'Unknown';
+  if (isOwn) senderName = 'You';
+  div.innerHTML = `
+    <div class="sender">${escapeHtml(senderName)}</div>
+    <div>${escapeHtml(msg.text)}</div>
+    <span class="timestamp">${formatTime(msg.timestamp || Date.now())}</span>
+  `;
   messagesArea.appendChild(div);
-  div.scrollIntoView({ behavior: 'smooth' });
+  messagesArea.scrollTop = messagesArea.scrollHeight;
 }
 
 // --- Private Messages ---
 socket.on('private_message', (msg) => {
-  // msg: { from, text, timestamp }
-  const isOwn = (msg.from === 'You' || msg.from === currentUser.username);
-  const div = document.createElement('div');
-  div.className = `message ${isOwn ? 'own' : 'other'} private`;
-  div.innerHTML = `<div class="sender">🔒 ${escapeHtml(msg.from)}</div><div>${escapeHtml(msg.text)}</div>`;
-  messagesArea.appendChild(div);
-  div.scrollIntoView({ behavior: 'smooth' });
+  if (currentChat && currentChat.conversationId === msg.conversationId) {
+    const isOwn = msg.senderId === currentUser.id || msg.from === 'You';
+    const div = document.createElement('div');
+    div.className = `message ${isOwn ? 'own' : 'other'} private`;
+    div.innerHTML = `
+      <div class="sender">🔒 ${isOwn ? 'You' : escapeHtml(msg.senderName || msg.from)}</div>
+      <div>${escapeHtml(msg.text)}</div>
+      <span class="timestamp">${formatTime(msg.timestamp || Date.now())}</span>
+    `;
+    messagesArea.appendChild(div);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+  socket.emit('get_chats');
 });
 
 socket.on('private_message_error', ({ error }) => {
   alert('Private message error: ' + error);
 });
 
-// --- Private Messages History (for DMs) ---
 socket.on('private_messages_history', ({ conversationId, messages }) => {
   if (currentChat && currentChat.conversationId === conversationId) {
     messagesArea.innerHTML = '';
     messages.forEach(msg => {
       const isOwn = msg.senderId === currentUser.id;
       const div = document.createElement('div');
-      div.className = `message ${isOwn ? 'own' : 'other'}`;
-      div.innerHTML = `<div class="sender">${escapeHtml(msg.senderName)}</div><div>${escapeHtml(msg.text)}</div>`;
+      div.className = `message ${isOwn ? 'own' : 'other'} private`;
+      div.innerHTML = `
+        <div class="sender">${isOwn ? 'You' : escapeHtml(msg.senderName)}</div>
+        <div>${escapeHtml(msg.text)}</div>
+        <span class="timestamp">${formatTime(msg.timestamp)}</span>
+      `;
       messagesArea.appendChild(div);
     });
     messagesArea.scrollTop = messagesArea.scrollHeight;
   }
 });
 
-// --- Chats List (for DM sidebar) ---
+// --- Chats List ---
 socket.on('chats_list', (chatsData) => {
   chats = chatsData;
   renderChats(chatsData);
@@ -225,18 +238,22 @@ socket.on('unfollow_success', ({ targetUserId }) => {
 
 // --- Stories & Reels ---
 socket.on('stories list', (stories) => {
-  const addBtn = storiesRow.querySelector('.story-add');
-  storiesRow.innerHTML = '';
-  storiesRow.appendChild(addBtn);
-  stories.forEach(s => addStoryToUI(s));
+  const addBtn = storiesRow?.querySelector('.story-add');
+  if (storiesRow) {
+    storiesRow.innerHTML = '';
+    if (addBtn) storiesRow.appendChild(addBtn);
+    stories.forEach(s => addStoryToUI(s));
+  }
 });
 socket.on('new story', (story) => addStoryToUI(story));
 
 socket.on('reels list', (reels) => {
-  const addBtn = reelsGrid.querySelector('.reel-add');
-  reelsGrid.innerHTML = '';
-  reelsGrid.appendChild(addBtn);
-  reels.forEach(r => addReelToUI(r));
+  const addBtn = reelsGrid?.querySelector('.reel-add');
+  if (reelsGrid) {
+    reelsGrid.innerHTML = '';
+    if (addBtn) reelsGrid.appendChild(addBtn);
+    reels.forEach(r => addReelToUI(r));
+  }
 });
 socket.on('new reel', (reel) => addReelToUI(reel));
 
@@ -258,88 +275,80 @@ socket.on('reel_likes_update', ({ reelId, likes }) => {
 
 // ========== RENDER FUNCTIONS ==========
 
-function renderUsersList(users) {
-  usersListEl.innerHTML = '';
-  users.forEach(u => {
-    if (u.id === currentUser?.id) return;
-    const div = document.createElement('div');
-    div.className = 'user-item';
-    const following = currentUser?.following?.includes(u.id) || false;
-    div.innerHTML = `
-      <img class="chat-avatar" src="${u.avatar || 'https://ui-avatars.com/api/?background=555&color=fff&name='+u.username[0]}" style="width:40px;height:40px;border-radius:50%;">
-      <div class="user-info">
-        <strong class="user-name">${escapeHtml(u.username)}</strong>
-        <div class="user-bio">${escapeHtml(u.bio || '')}</div>
-      </div>
-      <button class="follow-btn ${following ? 'following' : ''}" data-userid="${u.id}">
-        ${following ? 'Unfollow' : 'Follow'}
-      </button>
-    `;
-    const followBtn = div.querySelector('.follow-btn');
-    followBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const userId = followBtn.dataset.userid;
-      if (followBtn.classList.contains('following')) {
-        socket.emit('unfollow_user', { targetUserId: userId });
-      } else {
-        socket.emit('follow_user', { targetUserId: userId });
-      }
-    });
-    usersListEl.appendChild(div);
-  });
-}
-
 function renderChats(chatsData) {
   chatsList.innerHTML = '';
+  if (!chatsData || chatsData.length === 0) {
+    chatsList.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:#9ca3af;">
+        <i class="fas fa-inbox" style="font-size:32px;display:block;margin-bottom:8px;"></i>
+        <p>No conversations yet</p>
+        <span style="font-size:13px;">Start messaging someone</span>
+      </div>
+    `;
+    return;
+  }
   chatsData.forEach(chat => {
     const div = document.createElement('div');
-    div.className = 'chat-item';
+    div.className = `chat-item ${currentChat?.conversationId === chat.conversationId ? 'active' : ''}`;
     div.dataset.convid = chat.conversationId;
     const lastMsg = chat.lastMsg ? escapeHtml(chat.lastMsg.text) : 'Start chatting';
-    const time = chat.lastMsg ? new Date(chat.lastMsg.timestamp).toLocaleTimeString() : '';
+    const time = chat.lastMsg ? formatTime(chat.lastMsg.timestamp) : '';
+    const avatar = chat.avatar || `https://ui-avatars.com/api/?background=5b6ee1&color=fff&name=${chat.username[0]}`;
     div.innerHTML = `
-      <img class="chat-avatar" src="${chat.avatar || 'https://ui-avatars.com/api/?background=555&color=fff&name='+chat.username[0]}" style="width:48px;height:48px;border-radius:50%;">
-      <div class="chat-info">
-        <div class="chat-name">${escapeHtml(chat.username)}</div>
-        <div class="last-msg">${lastMsg}</div>
+      <img class="avatar" src="${avatar}" alt="${escapeHtml(chat.username)}">
+      <div class="info">
+        <div class="name">
+          ${escapeHtml(chat.username)}
+          <span class="time">${time}</span>
+        </div>
+        <div class="preview">${lastMsg}</div>
       </div>
-      <div class="timestamp">${time}</div>
+      ${chat.unread ? `<span class="badge">${chat.unread}</span>` : ''}
     `;
     div.onclick = () => openDM(chat);
     chatsList.appendChild(div);
   });
 }
 
+function renderUsersList(users) {
+  // For now, we're not displaying users list in the new UI
+  // The bottom nav "Users" tab can be implemented later
+}
+
 function openDM(chat) {
   currentChat = { type: 'dm', userId: chat.userId, conversationId: chat.conversationId };
   chatName.innerText = chat.username;
-  chatAvatar.src = chat.avatar || 'https://ui-avatars.com/api/?background=2c2c2e&color=fff&name='+chat.username[0];
-  chatStatus.innerText = '🔒 DM';
+  const avatar = chat.avatar || `https://ui-avatars.com/api/?background=5b6ee1&color=fff&name=${chat.username[0]}`;
+  chatAvatar.src = avatar;
+  chatAvatar.style.display = 'block';
+  chatStatus.innerText = 'Online';
   messageInput.disabled = false;
   sendBtn.disabled = false;
-  recipientInput.value = chat.username; // Auto-fill recipient
   socket.emit('get_private_messages', { conversationId: chat.conversationId });
+  renderChats(chats);
+  // On mobile, open the chat view
+  if (window.innerWidth <= 768) {
+    mainArea.classList.add('open');
+  }
 }
 
-// ========== TAB SWITCHING ==========
-tabBtns.forEach(btn => {
+// ========== TAB SWITCHING (Bottom Nav) ==========
+bottomBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    tabBtns.forEach(b => b.classList.remove('active'));
+    bottomBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
     if (tab === 'chats') {
-      chatsList.style.display = 'block';
-      usersListEl.style.display = 'none';
-    } else {
-      chatsList.style.display = 'none';
-      usersListEl.style.display = 'block';
-      socket.emit('get_users');
+      // Close mobile chat view if open
+      mainArea.classList.remove('open');
     }
+    // Other tabs can be implemented later
   });
 });
 
 // ========== STORY / REEL UI ==========
 function addStoryToUI(story) {
+  if (!storiesRow) return;
   const div = document.createElement('div');
   div.className = 'story-item';
   div.onclick = () => viewMedia(story);
@@ -349,7 +358,7 @@ function addStoryToUI(story) {
       ? `<video src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;"></video>`
       : `<img src="${story.mediaUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;">`;
   } else {
-    div.innerHTML = `<div style="width:70px;height:70px;background:#ffd966;border-radius:50%;display:flex;align-items:center;justify-content:center;">📝</div>`;
+    div.innerHTML = `<div style="width:70px;height:70px;background:#e5e7eb;border-radius:50%;display:flex;align-items:center;justify-content:center;">📝</div>`;
   }
   div.innerHTML += `<div class="story-username">${escapeHtml(story.username)}</div>`;
   const likeBtn = document.createElement('button');
@@ -366,6 +375,7 @@ function addStoryToUI(story) {
 }
 
 function addReelToUI(reel) {
+  if (!reelsGrid) return;
   const div = document.createElement('div');
   div.className = 'reel-item';
   div.onclick = () => viewMedia(reel);
@@ -375,7 +385,7 @@ function addReelToUI(reel) {
       ? `<video src="${reel.mediaUrl}" controls style="width:100%;max-height:200px;"></video>`
       : `<img src="${reel.mediaUrl}" style="width:100%;">`;
   } else {
-    div.innerHTML = `<div style="padding:40px;text-align:center;">📝 ${escapeHtml(reel.text)}</div>`;
+    div.innerHTML = `<div style="padding:20px;text-align:center;">📝 ${escapeHtml(reel.text)}</div>`;
   }
   div.innerHTML += `<div class="reel-caption"><strong>${escapeHtml(reel.username)}</strong>: ${escapeHtml(reel.text || '')}</div>`;
   const likeBtn = document.createElement('button');
@@ -414,7 +424,7 @@ function viewMedia(item) {
       viewerMedia.appendChild(img);
     }
   } else {
-    viewerMedia.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:200px;background:#2a2a2e;border-radius:16px;padding:40px;width:100%;"><span style="font-size:48px;color:#ffd966;">📝</span></div>`;
+    viewerMedia.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:200px;background:#1a1a2e;border-radius:16px;padding:40px;width:100%;"><span style="font-size:48px;">📝</span></div>`;
   }
 
   if (item.text && item.text.trim()) viewerCaption.textContent = item.text;
@@ -456,7 +466,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && viewerModal.style.display === 'flex') closeViewer();
 });
 
-// ========== SEND MESSAGE (UPDATED) ==========
+// ========== SEND MESSAGE ==========
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') sendMessage();
@@ -464,30 +474,53 @@ messageInput.addEventListener('keypress', (e) => {
 
 function sendMessage() {
   const text = messageInput.value.trim();
-  if (!text) return;
+  if (!text || !currentChat) return;
 
-  const recipient = recipientInput.value.trim();
-
-  if (recipient) {
-    // Private message
-    socket.emit('private_message', { recipient, message: text });
+  if (currentChat.type === 'dm') {
+    socket.emit('private_message', { recipient: currentChat.userId, message: text });
   } else {
-    // Public message (fallback)
     socket.emit('chat message', { userId: currentUser.id, username: currentUser.username, text });
   }
   messageInput.value = '';
 }
 
 // ========== PROFILE EDIT ==========
-hamburgerBtn.onclick = () => profileModal.style.display = 'flex';
-document.querySelector('.close-modal').onclick = () => profileModal.style.display = 'none';
+hamburgerBtn.addEventListener('click', () => {
+  editUsername.value = currentUser.username;
+  editBio.value = currentUser.bio || '';
+  profileAvatarPreview.src = currentUser.avatar || `https://ui-avatars.com/api/?background=5b6ee1&color=fff&name=${currentUser.username[0]}`;
+  profileModal.style.display = 'flex';
+});
+document.querySelector('.close-modal').addEventListener('click', () => profileModal.style.display = 'none');
+profileModal.addEventListener('click', (e) => {
+  if (e.target === profileModal) profileModal.style.display = 'none';
+});
 
-saveProfileBtn.onclick = () => {
+avatarUpload.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => { profileAvatarPreview.src = ev.target.result; };
+    reader.readAsDataURL(file);
+  }
+});
+
+saveProfileBtn.addEventListener('click', async () => {
   const newUsername = editUsername.value.trim();
   const newBio = editBio.value;
   if (!newUsername) return alert('Username cannot be empty');
-  socket.emit('update profile', { userId: currentUser.id, username: newUsername, bio: newBio });
-};
+  let avatarUrl = currentUser.avatar || '';
+  const file = avatarUpload.files[0];
+  if (file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'stories');
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) avatarUrl = data.post.mediaUrl;
+  }
+  socket.emit('update profile', { userId: currentUser.id, username: newUsername, bio: newBio, avatar: avatarUrl });
+});
 
 socket.on('profile updated', ({ username, bio }) => {
   currentUser.username = username;
@@ -506,11 +539,11 @@ function openUploadModal(type) {
   uploadModal.style.display = 'flex';
 }
 
-addStoryBtn.onclick = () => openUploadModal('stories');
-addReelBtn.onclick = () => openUploadModal('reels');
-closeUploadBtn.onclick = () => uploadModal.style.display = 'none';
+document.getElementById('addStoryBtn')?.addEventListener('click', () => openUploadModal('stories'));
+document.getElementById('addReelBtn')?.addEventListener('click', () => openUploadModal('reels'));
+closeUploadBtn?.addEventListener('click', () => uploadModal.style.display = 'none');
 
-confirmUploadBtn.onclick = async () => {
+confirmUploadBtn.addEventListener('click', async () => {
   const file = uploadFile.files[0];
   const text = uploadText.value.trim();
   if (!file && !text) return alert('Please select a file or write text');
@@ -538,64 +571,18 @@ confirmUploadBtn.onclick = async () => {
     console.error('Upload error:', err);
     alert('Error uploading file');
   }
-};
+});
 
-// ========== MOBILE NAVIGATION ==========
-if (mobileNav) {
-  mobileNav.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      mobileNav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const view = btn.dataset.view;
-      const reelsSidebar = document.querySelector('.reels-sidebar');
+// ========== CLOSE MOBILE CHAT ==========
+// Close chat when clicking outside on mobile (optional)
+document.addEventListener('click', (e) => {
+  if (window.innerWidth <= 768 && mainArea.classList.contains('open')) {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar.contains(e.target) && !mainArea.contains(e.target)) {
+      mainArea.classList.remove('open');
+    }
+  }
+});
 
-      if (view === 'reels') {
-        if (reelsSidebar) {
-          reelsSidebar.style.display = 'flex';
-          reelsSidebar.style.width = '100%';
-          reelsSidebar.style.height = '100vh';
-          reelsSidebar.style.height = '100dvh';
-          reelsSidebar.style.position = 'fixed';
-          reelsSidebar.style.top = '0';
-          reelsSidebar.style.left = '0';
-          reelsSidebar.style.zIndex = '30';
-          reelsSidebar.style.background = '#fef9e6';
-          reelsSidebar.style.borderLeft = 'none';
-          reelsSidebar.style.overflowY = 'auto';
-          if (!document.getElementById('closeReelsMobile')) {
-            const closeBtn = document.createElement('button');
-            closeBtn.id = 'closeReelsMobile';
-            closeBtn.innerHTML = '✕';
-            closeBtn.style.cssText = `
-              position: absolute; top: 16px; right: 16px; font-size: 28px;
-              background: none; border: none; color: #ff4d4d; cursor: pointer;
-              z-index: 31; font-weight: bold;
-            `;
-            closeBtn.onclick = () => {
-              reelsSidebar.style.display = '';
-              reelsSidebar.style.width = '';
-              reelsSidebar.style.height = '';
-              reelsSidebar.style.position = '';
-              reelsSidebar.style.top = '';
-              reelsSidebar.style.left = '';
-              reelsSidebar.style.zIndex = '';
-              reelsSidebar.style.background = '';
-              reelsSidebar.style.borderLeft = '';
-              reelsSidebar.style.overflowY = '';
-              closeBtn.remove();
-              mobileNav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-              document.querySelector('[data-view="chat"]').classList.add('active');
-            };
-            reelsSidebar.appendChild(closeBtn);
-          }
-        }
-      } else if (view === 'stories') {
-        const storiesSection = document.querySelector('.stories-section');
-        if (storiesSection) storiesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        const closeBtn = document.getElementById('closeReelsMobile');
-        if (closeBtn) closeBtn.click();
-      }
-    });
-  });
-}
+// ========== INIT ==========
+console.log('AnonChat UI loaded successfully!');
