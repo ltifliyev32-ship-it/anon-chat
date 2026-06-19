@@ -1,6 +1,6 @@
 const socket = io();
 
-// ========== UTILITY FUNCTIONS ==========
+// ========== UTILITY ==========
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
@@ -28,6 +28,7 @@ const chatStatus = document.getElementById('chatStatus');
 
 const messagesArea = document.getElementById('messagesArea');
 const messageInput = document.getElementById('messageInput');
+const recipientInput = document.getElementById('recipientInput'); // NEW
 const sendBtn = document.getElementById('sendBtn');
 const hamburgerBtn = document.getElementById('hamburgerBtn');
 const profileModal = document.getElementById('profileModal');
@@ -139,9 +140,22 @@ socket.on('update online', (users) => {
   document.getElementById('userCount').innerText = users.length;
   document.querySelector('.sidebar').setAttribute('data-user-count', users.length);
   renderUsersList(users);
+
+  // Update datalist for recipient auto-completion
+  const datalist = document.getElementById('onlineUsersList');
+  if (datalist) {
+    datalist.innerHTML = '';
+    users.forEach(username => {
+      if (username !== currentUser.username) {
+        const option = document.createElement('option');
+        option.value = username;
+        datalist.appendChild(option);
+      }
+    });
+  }
 });
 
-// --- Public Chat ---
+// --- Public Chat (for groups / public channels) ---
 socket.on('message history', (msgs) => {
   messagesArea.innerHTML = '';
   msgs.forEach(msg => appendMessage(msg, false));
@@ -159,17 +173,20 @@ function appendMessage(msg, isPrivate = false) {
 
 // --- Private Messages ---
 socket.on('private_message', (msg) => {
-  if (currentChat && currentChat.conversationId === msg.conversationId) {
-    const isOwn = msg.senderId === currentUser.id;
-    const div = document.createElement('div');
-    div.className = `message ${isOwn ? 'own' : 'other'}`;
-    div.innerHTML = `<div class="sender">${escapeHtml(msg.senderName)}</div><div>${escapeHtml(msg.text)}</div>`;
-    messagesArea.appendChild(div);
-    div.scrollIntoView({ behavior: 'smooth' });
-  }
-  socket.emit('get_chats');
+  // msg: { from, text, timestamp }
+  const isOwn = (msg.from === 'You' || msg.from === currentUser.username);
+  const div = document.createElement('div');
+  div.className = `message ${isOwn ? 'own' : 'other'} private`;
+  div.innerHTML = `<div class="sender">🔒 ${escapeHtml(msg.from)}</div><div>${escapeHtml(msg.text)}</div>`;
+  messagesArea.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
 });
 
+socket.on('private_message_error', ({ error }) => {
+  alert('Private message error: ' + error);
+});
+
+// --- Private Messages History (for DMs) ---
 socket.on('private_messages_history', ({ conversationId, messages }) => {
   if (currentChat && currentChat.conversationId === conversationId) {
     messagesArea.innerHTML = '';
@@ -184,7 +201,7 @@ socket.on('private_messages_history', ({ conversationId, messages }) => {
   }
 });
 
-// --- Chats List ---
+// --- Chats List (for DM sidebar) ---
 socket.on('chats_list', (chatsData) => {
   chats = chatsData;
   renderChats(chatsData);
@@ -300,6 +317,7 @@ function openDM(chat) {
   chatStatus.innerText = '🔒 DM';
   messageInput.disabled = false;
   sendBtn.disabled = false;
+  recipientInput.value = chat.username; // Auto-fill recipient
   socket.emit('get_private_messages', { conversationId: chat.conversationId });
 }
 
@@ -438,7 +456,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && viewerModal.style.display === 'flex') closeViewer();
 });
 
-// ========== SEND MESSAGE ==========
+// ========== SEND MESSAGE (UPDATED) ==========
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') sendMessage();
@@ -447,9 +465,14 @@ messageInput.addEventListener('keypress', (e) => {
 function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
-  if (currentChat && currentChat.type === 'dm') {
-    socket.emit('private_message', { receiverId: currentChat.userId, text });
+
+  const recipient = recipientInput.value.trim();
+
+  if (recipient) {
+    // Private message
+    socket.emit('private_message', { recipient, message: text });
   } else {
+    // Public message (fallback)
     socket.emit('chat message', { userId: currentUser.id, username: currentUser.username, text });
   }
   messageInput.value = '';
