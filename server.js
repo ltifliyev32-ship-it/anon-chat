@@ -144,6 +144,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // ========== SOCKET.IO ==========
 const usersOnline = new Map(); // socketId -> user object
+const usernameToSocket = new Map(); // username -> socketId (for quick DM routing)
 
 io.on('connection', (socket) => {
   console.log('New socket connection:', socket.id);
@@ -151,6 +152,7 @@ io.on('connection', (socket) => {
   // --- User online ---
   socket.on('user online', (user) => {
     usersOnline.set(socket.id, user);
+    usernameToSocket.set(user.username, socket.id);
     io.emit('update online', Array.from(usersOnline.values()));
   });
 
@@ -172,15 +174,22 @@ io.on('connection', (socket) => {
     const users = readJSON('users.json');
     const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
+      // Update stored user
+      const oldUsername = users[userIndex].username;
       users[userIndex].username = username;
       users[userIndex].bio = bio;
       writeJSON('users.json', users);
-      // Update online user data
+      // Update online maps
       for (let [sid, u] of usersOnline.entries()) {
         if (u.id === userId) {
           u.username = username;
           u.bio = bio;
           usersOnline.set(sid, u);
+          // Update username map
+          if (oldUsername !== username) {
+            usernameToSocket.delete(oldUsername);
+            usernameToSocket.set(username, sid);
+          }
           io.emit('update online', Array.from(usersOnline.values()));
           break;
         }
@@ -192,7 +201,6 @@ io.on('connection', (socket) => {
   // --- Get all users (for Users tab) ---
   socket.on('get_users', () => {
     const users = readJSON('users.json');
-    // Exclude current user? But we want to show all for following.
     socket.emit('all_users', users);
   });
 
@@ -221,32 +229,44 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- Private Messages ---
-  socket.on('private_message', ({ receiverId, text }) => {
+  // ========== PRIVATE MESSAGES (UPDATED) ==========
+  socket.on('private_message', ({ recipient, message }) => {
     const sender = usersOnline.get(socket.id);
-    if (!sender) return;
+    if (!sender) {
+      socket.emit('private_message_error', { error: 'You are not logged in.' });
+      return;
+    }
+
+    // Look up recipient's socket ID
+    const recipientSocketId = usernameToSocket.get(recipient);
+    if (!recipientSocketId) {
+      socket.emit('private_message_error', { error: `User "${recipient}" is not online.` });
+      return;
+    }
+
+    // Build message object
     const msgObj = {
-      id: Date.now() + '_' + Math.random(),
-      senderId: sender.id,
-      senderName: sender.username,
-      text,
+      from: sender.username,
+      text: message,
       timestamp: new Date().toISOString()
     };
-    const convId = getDMConvId(sender.id, receiverId);
-    const privateData = getPrivateMessages();
-    if (!privateData.conversations[convId]) privateData.conversations[convId] = [];
-    privateData.conversations[convId].push(msgObj);
-    savePrivateMessages(privateData);
 
-    // Send to receiver if online
-    const receiverSocket = [...usersOnline.entries()].find(([_, u]) => u.id === receiverId)?.[0];
-    if (receiverSocket) {
-      io.to(receiverSocket).emit('private_message', { ...msgObj, conversationId: convId });
-    }
-    socket.emit('private_message', { ...msgObj, conversationId: convId });
+    // Send to recipient
+    socket.to(recipientSocketId).emit('private_message', msgObj);
+    // Echo back to sender (with "You" as sender)
+    socket.emit('private_message', { ...msgObj, from: 'You' });
+
+    // Optionally store in database (if you want history)
+    // Currently, private messages are not persisted; you can extend this later.
   });
 
-  // --- Get private messages history ---
+  // ========== (KEEP EXISTING PRIVATE MESSAGE HISTORY LOGIC – optional) ==========
+  // If you want to keep the old `private_message` with receiverId, you can keep it,
+  // but the client now uses `recipient` (username). We'll comment out the old one or
+  // keep both for compatibility. For clean code, we'll override.
+  // The old `private_message` with receiverId is replaced above.
+
+  // --- Get private messages history (unchanged) ---
   socket.on('get_private_messages', ({ conversationId }) => {
     const privateData = getPrivateMessages();
     const messages = privateData.conversations[conversationId] || [];
@@ -324,7 +344,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- Get likes count (optional) ---
+  // --- Get likes count ---
   socket.on('get_story_likes', ({ storyId }) => {
     const likes = getStoryLikes();
     socket.emit('story_likes_update', { storyId, likes: likes[storyId] || [] });
@@ -336,6 +356,10 @@ io.on('connection', (socket) => {
 
   // --- Disconnect ---
   socket.on('disconnect', () => {
+    const user = usersOnline.get(socket.id);
+    if (user) {
+      usernameToSocket.delete(user.username);
+    }
     usersOnline.delete(socket.id);
     io.emit('update online', Array.from(usersOnline.values()));
     console.log('User disconnected:', socket.id);
