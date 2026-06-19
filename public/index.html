@@ -69,13 +69,13 @@
 
       <!-- Main Chat Area -->
       <div class="main-area">
-        <!-- ========== UPDATED CHAT HEADER ========== -->
+        <!-- Chat Header -->
         <div class="chat-header">
           <div class="user-profile">
             <span id="currentUsername"></span>
             <span id="currentBio" class="bio-text"></span>
           </div>
-          <!-- DM header info (hidden by default, shown when a chat is selected) -->
+          <!-- DM header info -->
           <div id="chatHeaderInfo" style="display:flex;align-items:center;gap:8px;">
             <img id="chatAvatar" class="chat-avatar" style="width:36px;height:36px;border-radius:50%;display:none;">
             <div>
@@ -87,7 +87,6 @@
             <i class="fas fa-bars"></i>
           </div>
         </div>
-        <!-- ========================================= -->
         
         <!-- Stories Row -->
         <div class="stories-section">
@@ -107,11 +106,16 @@
           </div>
         </div>
 
-        <!-- Chat Input -->
+        <!-- ====== UPDATED CHAT INPUT (with recipient field) ====== -->
         <div class="chat-input">
+          <!-- Recipient input (with datalist for auto-completion) -->
+          <input type="text" id="recipientInput" list="onlineUsersList" placeholder="To (username)" style="width:120px;flex-shrink:0;">
+          <datalist id="onlineUsersList"></datalist>
+          
           <input type="text" id="messageInput" placeholder="Type a message..." disabled>
           <button id="sendBtn" disabled><i class="fas fa-paper-plane"></i> Send</button>
         </div>
+        <!-- ===================================================== -->
       </div>
 
       <!-- Reels Section (Right Column) -->
@@ -150,7 +154,7 @@
     </div>
   </div>
 
-  <!-- ====== Immersive Story/Reel Viewer Modal ====== -->
+  <!-- Immersive Story/Reel Viewer Modal -->
   <div id="storyViewerModal" class="modal story-viewer-modal">
     <div class="modal-content">
       <button id="closeStoryViewer" class="close-story-btn">
@@ -160,7 +164,6 @@
         <div id="storyViewerMedia"></div>
         <div id="storyViewerCaption"></div>
         <div id="storyViewerUser" class="story-viewer-user"></div>
-        <!-- Like button inside viewer -->
         <div class="story-viewer-actions">
           <button id="viewerLikeBtn" class="viewer-like-btn">
             <i class="fas fa-heart"></i> <span id="viewerLikeCount">0</span>
@@ -170,7 +173,7 @@
     </div>
   </div>
 
-  <!-- ====== Mobile Bottom Navigation ====== -->
+  <!-- Mobile Bottom Navigation -->
   <div class="mobile-nav" id="mobileNav">
     <button class="active" data-view="chat"><i class="fas fa-comment"></i> Chat</button>
     <button data-view="reels"><i class="fas fa-film"></i> Reels</button>
