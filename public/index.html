@@ -3,17 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AnonChat · Anonymous Chat & Stories</title>
+  <title>AnonChat</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- Auth Screens -->
   <div id="authContainer" class="auth-container">
     <div class="auth-card">
-      <h1><i class="fab fa-instagram"></i> AnonChat</h1>
+      <div class="auth-logo">
+        <i class="fas fa-comment-dots"></i>
+        <h1>AnonChat</h1>
+      </div>
       <div class="auth-tabs">
-        <button id="showLoginBtn" class="active">Login</button>
+        <button id="showLoginBtn" class="active">Sign In</button>
         <button id="showSignupBtn">Sign Up</button>
       </div>
       <div id="loginForm" class="auth-form">
@@ -31,100 +35,84 @@
     </div>
   </div>
 
-  <!-- Main App (hidden until login) -->
+  <!-- Main App -->
   <div id="chatApp" style="display:none;">
     <div class="app-container">
-      <!-- Sidebar with Tabs -->
+      <!-- Sidebar - Message List -->
       <div class="sidebar">
         <div class="sidebar-header">
-          <h2><i class="fab fa-instagram"></i> AnonChat</h2>
-        </div>
-        
-        <!-- Tab buttons -->
-        <div class="sidebar-tabs">
-          <button class="tab-btn active" data-tab="chats">
-            <i class="fas fa-comment-dots"></i> Chats
-          </button>
-          <button class="tab-btn" data-tab="users">
-            <i class="fas fa-users"></i> Users
-          </button>
+          <div class="sidebar-title">
+            <i class="fas fa-comment-dots"></i>
+            <span>Messages</span>
+          </div>
+          <div class="sidebar-actions">
+            <button id="hamburgerBtn" class="icon-btn">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </div>
         </div>
 
-        <!-- Chats list (DMs & Groups) -->
+        <!-- Online status + search (optional) -->
+        <div class="sidebar-status">
+          <span class="online-dot"></span>
+          <span id="userCountDisplay">0 online</span>
+        </div>
+
+        <!-- Chats List -->
         <div class="chats-list" id="chatsList">
           <!-- Populated by JavaScript -->
         </div>
 
-        <!-- Users list (for follow/unfollow) -->
-        <div class="users-list" id="usersList" style="display:none;">
-          <!-- Populated by JavaScript -->
-        </div>
-
-        <!-- Online count badge (mobile-friendly) -->
-        <div class="online-badge" id="onlineBadge">
-          <i class="fas fa-circle" style="color:#26de81;font-size:10px;"></i>
-          <span id="userCount">0</span> online
+        <!-- Bottom nav (mobile) -->
+        <div class="sidebar-bottom">
+          <button class="bottom-btn active" data-tab="chats">
+            <i class="fas fa-comment"></i>
+          </button>
+          <button class="bottom-btn" data-tab="users">
+            <i class="fas fa-users"></i>
+          </button>
+          <button class="bottom-btn" data-tab="stories">
+            <i class="fas fa-camera"></i>
+          </button>
         </div>
       </div>
 
       <!-- Main Chat Area -->
       <div class="main-area">
         <!-- Chat Header -->
-        <div class="chat-header">
-          <div class="user-profile">
-            <span id="currentUsername"></span>
-            <span id="currentBio" class="bio-text"></span>
-          </div>
-          <!-- DM header info -->
-          <div id="chatHeaderInfo" style="display:flex;align-items:center;gap:8px;">
-            <img id="chatAvatar" class="chat-avatar" style="width:36px;height:36px;border-radius:50%;display:none;">
-            <div>
-              <strong id="chatName">Select a chat</strong><br>
-              <span id="chatStatus" style="font-size:12px;">start messaging</span>
+        <div class="chat-header" id="chatHeader">
+          <div class="chat-header-left">
+            <img id="chatAvatar" class="chat-avatar" src="" alt="avatar">
+            <div class="chat-header-info">
+              <strong id="chatName">Select a chat</strong>
+              <span id="chatStatus">start messaging</span>
             </div>
           </div>
-          <div id="hamburgerBtn" class="menu-icon">
-            <i class="fas fa-bars"></i>
-          </div>
-        </div>
-        
-        <!-- Stories Row -->
-        <div class="stories-section">
-          <div class="stories-title">📸 Stories (24h)</div>
-          <div class="stories-row" id="storiesRow">
-            <div class="story-add" id="addStoryBtn">
-              <i class="fas fa-plus-circle"></i><span>Your Story</span>
-            </div>
+          <div class="chat-header-right">
+            <button class="icon-btn" id="chatMenuBtn">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
           </div>
         </div>
 
-        <!-- Chat Messages -->
+        <!-- Messages Area -->
         <div class="messages-area" id="messagesArea">
-          <div class="empty-chat-message">
+          <div class="empty-state">
             <i class="fas fa-comment-dots"></i>
-            <p>Select a chat to start messaging</p>
+            <p>Select a conversation</p>
+            <span>Start messaging by choosing a chat from the list</span>
           </div>
         </div>
 
-        <!-- ====== UPDATED CHAT INPUT (with recipient field) ====== -->
-        <div class="chat-input">
-          <!-- Recipient input (with datalist for auto-completion) -->
-          <input type="text" id="recipientInput" list="onlineUsersList" placeholder="To (username)" style="width:120px;flex-shrink:0;">
-          <datalist id="onlineUsersList"></datalist>
-          
+        <!-- Chat Input -->
+        <div class="chat-input" id="chatInput">
+          <button class="attach-btn" id="attachBtn">
+            <i class="fas fa-paperclip"></i>
+          </button>
           <input type="text" id="messageInput" placeholder="Type a message..." disabled>
-          <button id="sendBtn" disabled><i class="fas fa-paper-plane"></i> Send</button>
-        </div>
-        <!-- ===================================================== -->
-      </div>
-
-      <!-- Reels Section (Right Column) -->
-      <div class="reels-sidebar">
-        <div class="reels-header">🎬 Reels</div>
-        <div class="reels-grid" id="reelsGrid">
-          <div class="reel-add" id="addReelBtn">
-            <i class="fas fa-video"></i> Upload Reel
-          </div>
+          <button id="sendBtn" class="send-btn" disabled>
+            <i class="fas fa-paper-plane"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -134,7 +122,14 @@
   <div id="profileModal" class="modal">
     <div class="modal-content">
       <span class="close-modal">&times;</span>
-      <h2>Edit Profile</h2>
+      <h2>Profile</h2>
+      <div class="profile-avatar-edit">
+        <img id="profileAvatarPreview" src="" alt="avatar">
+        <label for="avatarUpload" class="avatar-upload-btn">
+          <i class="fas fa-camera"></i>
+        </label>
+        <input type="file" id="avatarUpload" accept="image/*" style="display:none;">
+      </div>
       <label>Nickname</label>
       <input type="text" id="editUsername">
       <label>Bio</label>
@@ -154,7 +149,7 @@
     </div>
   </div>
 
-  <!-- Immersive Story/Reel Viewer Modal -->
+  <!-- Story Viewer Modal -->
   <div id="storyViewerModal" class="modal story-viewer-modal">
     <div class="modal-content">
       <button id="closeStoryViewer" class="close-story-btn">
@@ -171,13 +166,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Mobile Bottom Navigation -->
-  <div class="mobile-nav" id="mobileNav">
-    <button class="active" data-view="chat"><i class="fas fa-comment"></i> Chat</button>
-    <button data-view="reels"><i class="fas fa-film"></i> Reels</button>
-    <button data-view="stories"><i class="fas fa-camera"></i> Stories</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
